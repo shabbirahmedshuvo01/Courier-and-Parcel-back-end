@@ -26,10 +26,8 @@ app.get('/', (req, res) => {
 });
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/courier_management', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
+// Database connection - FIXED: Removed deprecated options
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/courier_management')
     .then(() => console.log('MongoDB connected successfully'))
     .catch(err => console.error('MongoDB connection error:', err));
 
