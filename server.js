@@ -9,7 +9,11 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://192.168.1.102:3000', 'http://localhost:3000'], // Allow specific origins
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -19,6 +23,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/parcels', require('./routes/parcels'));
 app.use('/api/couriers', require('./routes/couriers'));
 app.use('/api/deliveries', require('./routes/deliveries'));
+
 
 // Basic route
 app.get('/', (req, res) => {
