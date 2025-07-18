@@ -1,5 +1,6 @@
 const Parcel = require('../models/Parcel');
 const { calculateShippingCost, calculateDeliveryDate } = require('../utils/helpers');
+const paginate = require('../utils/Pagination');
 
 // @desc    Create new parcel
 // @route   POST /api/parcels
@@ -217,13 +218,12 @@ const trackParcel = async (req, res) => {
 // @access  Private
 const getMyParcels = async (req, res) => {
     try {
-        const parcels = await Parcel.find({ sender: req.user.id }).sort('-createdAt');
-
-        res.status(200).json({
-            success: true,
-            count: parcels.length,
-            data: parcels
-        });
+        const result = await paginate(
+            Parcel,
+            { sender: req.user.id },
+            { page: req.query.page, limit: req.query.limit, sort: '-createdAt' }
+        );
+        res.status(200).json({ success: true, ...result });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
