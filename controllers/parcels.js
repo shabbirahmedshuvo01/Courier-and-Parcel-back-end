@@ -1,6 +1,7 @@
 const Parcel = require('../models/Parcel');
 const { calculateShippingCost, calculateDeliveryDate } = require('../utils/helpers');
 const paginate = require('../utils/Pagination');
+const qs = require('qs');
 
 // @desc    Create new parcel
 // @route   POST /api/parcels
@@ -33,25 +34,30 @@ const createParcel = async (req, res) => {
 // @access  Private
 const getParcels = async (req, res) => {
     try {
-        let query;
+        // Parse nested query params
+        const queryObj = qs.parse(req._parsedUrl.query);
 
-        // Copy req.query
-        const reqQuery = { ...req.query };
+        // Handle search
+        if (queryObj.search) {
+            const searchValue = queryObj.search;
+            queryObj.$or = [
+                { trackingNumber: { $regex: searchValue, $options: 'i' } },
+                { 'recipient.name': { $regex: searchValue, $options: 'i' } },
+                { 'recipient.email': { $regex: searchValue, $options: 'i' } }
+            ];
+            delete queryObj.search;
+        }
 
         // Fields to exclude
         const removeFields = ['select', 'sort', 'page', 'limit'];
-
-        // Loop over removeFields and delete them from reqQuery
-        removeFields.forEach(param => delete reqQuery[param]);
+        removeFields.forEach(param => delete queryObj[param]);
 
         // Create query string
-        let queryStr = JSON.stringify(reqQuery);
-
-        // Create operators ($gt, $gte, etc)
+        let queryStr = JSON.stringify(queryObj);
         queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
         // Finding resource
-        query = Parcel.find(JSON.parse(queryStr)).populate('sender', 'name email');
+        let query = Parcel.find(JSON.parse(queryStr)).populate('sender', 'name email');
 
         // Select Fields
         if (req.query.select) {
@@ -72,7 +78,7 @@ const getParcels = async (req, res) => {
         const limit = parseInt(req.query.limit, 10) || 25;
         const startIndex = (page - 1) * limit;
         const endIndex = page * limit;
-        const total = await Parcel.countDocuments();
+        const total = await Parcel.countDocuments(JSON.parse(queryStr));
 
         query = query.skip(startIndex).limit(limit);
 
@@ -81,19 +87,11 @@ const getParcels = async (req, res) => {
 
         // Pagination result
         const pagination = {};
-
         if (endIndex < total) {
-            pagination.next = {
-                page: page + 1,
-                limit
-            };
+            pagination.next = { page: page + 1, limit };
         }
-
         if (startIndex > 0) {
-            pagination.prev = {
-                page: page - 1,
-                limit
-            };
+            pagination.prev = { page: page - 1, limit };
         }
 
         res.status(200).json({
@@ -216,14 +214,76 @@ const trackParcel = async (req, res) => {
 // @desc    Get user's parcels
 // @route   GET /api/parcels/my-parcels
 // @access  Private
+
 const getMyParcels = async (req, res) => {
     try {
-        const result = await paginate(
-            Parcel,
-            { sender: req.user.id },
-            { page: req.query.page, limit: req.query.limit, sort: '-createdAt' }
-        );
-        res.status(200).json({ success: true, ...result });
+        // Parse nested query params and always filter by sender
+        const queryObj = qs.parse(req._parsedUrl.query);
+        queryObj.sender = req.user.id;
+
+        // Handle search
+        if (queryObj.search) {
+            const searchValue = queryObj.search;
+            queryObj.$or = [
+                { trackingNumber: { $regex: searchValue, $options: 'i' } },
+                { 'recipient.name': { $regex: searchValue, $options: 'i' } },
+                { 'recipient.email': { $regex: searchValue, $options: 'i' } }
+            ];
+            delete queryObj.search;
+        }
+
+        // Fields to exclude
+        const removeFields = ['select', 'sort', 'page', 'limit'];
+        removeFields.forEach(param => delete queryObj[param]);
+
+        // Create query string
+        let queryStr = JSON.stringify(queryObj);
+        queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
+
+        // Build query
+        let query = Parcel.find(JSON.parse(queryStr));
+
+        // Select fields
+        if (req.query.select) {
+            const fields = req.query.select.split(',').join(' ');
+            query = query.select(fields);
+        }
+
+        // Sort
+        if (req.query.sort) {
+            const sortBy = req.query.sort.split(',').join(' ');
+            query = query.sort(sortBy);
+        } else {
+            query = query.sort('-createdAt');
+        }
+
+        // Pagination
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 25;
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        const total = await Parcel.countDocuments(JSON.parse(queryStr));
+
+        query = query.skip(startIndex).limit(limit);
+
+        // Execute query
+        const parcels = await query;
+
+        // Pagination result
+        const pagination = {};
+        if (endIndex < total) {
+            pagination.next = { page: page + 1, limit };
+        }
+        if (startIndex > 0) {
+            pagination.prev = { page: page - 1, limit };
+        }
+
+        res.status(200).json({
+            success: true,
+            count: parcels.length,
+            pagination,
+            data: parcels
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
