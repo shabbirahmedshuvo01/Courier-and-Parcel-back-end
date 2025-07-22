@@ -1,16 +1,44 @@
 const User = require('../models/User');
+const paginate = require('../utils/Pagination');
 
 // @desc    Get all users
 // @route   GET /api/users
 // @access  Private/Admin
 const getUsers = async (req, res) => {
     try {
-        const users = await User.find().select('-password');
+        // Filtering
+        const queryObj = {};
+        if (req.query.name) {
+            queryObj.name = { $regex: req.query.name, $options: 'i' };
+        }
+        if (req.query.email) {
+            queryObj.email = { $regex: req.query.email, $options: 'i' };
+        }
+        if (req.query.role && req.query.role !== "all") {
+            queryObj.role = req.query.role;
+        }
+        if (typeof req.query.isActive !== "undefined" && req.query.isActive !== "all") {
+            queryObj.isActive = req.query.isActive === "true" || req.query.isActive === true;
+        }
+
+        // Pagination options
+        const options = {
+            page: req.query.page,
+            limit: req.query.limit,
+            sort: req.query.sort,
+        };
+
+        const result = await paginate(User, queryObj, options);
+
+        // Remove password from results
+        result.data = result.data.map(user => {
+            user.password = undefined;
+            return user;
+        });
 
         res.status(200).json({
             success: true,
-            count: users.length,
-            data: users
+            ...result
         });
     } catch (error) {
         console.error(error);
