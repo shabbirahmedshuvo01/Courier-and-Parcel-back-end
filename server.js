@@ -10,7 +10,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: ['http://192.168.1.102:3000', 'http://localhost:3000'], // Allow specific origins
+    origin: ['http://192.168.1.102:3000', 'http://localhost:3000', "https://courier-and-parcel-front-end-v1.vercel.app"], // Allow specific origins
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     credentials: true
 }));
