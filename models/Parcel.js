@@ -69,7 +69,11 @@ const parcelSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'paid', 'refunded'],
         default: 'pending'
-    }
+    },
+    assignedAgent: {
+        type: mongoose.Schema.ObjectId,
+        ref: 'User'
+    },
 }, {
     timestamps: true
 });

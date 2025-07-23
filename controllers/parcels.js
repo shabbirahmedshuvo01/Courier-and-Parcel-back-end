@@ -290,6 +290,37 @@ const getMyParcels = async (req, res) => {
     }
 };
 
+// @desc    Assign agent to parcel
+// @route   PATCH /api/parcels/:id/assign-agent
+// @access  Private/Admin
+const assignAgent = async (req, res) => {
+    try {
+        const { agentId } = req.body; // expects { agentId: "..." }
+        if (!agentId) {
+            return res.status(400).json({ message: 'agentId is required' });
+        }
+
+        // Find parcel
+        const parcel = await Parcel.findById(req.params.id);
+        if (!parcel) {
+            return res.status(404).json({ message: 'Parcel not found' });
+        }
+
+        // Assign agent
+        parcel.assignedAgent = agentId;
+        await parcel.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Agent assigned successfully',
+            data: parcel
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
 module.exports = {
     createParcel,
     getParcels,
@@ -297,5 +328,6 @@ module.exports = {
     updateParcel,
     deleteParcel,
     trackParcel,
-    getMyParcels
+    getMyParcels,
+    assignAgent
 };

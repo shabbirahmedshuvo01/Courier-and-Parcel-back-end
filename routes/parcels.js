@@ -29,4 +29,6 @@ router
     .put(authorize('admin', 'courier'), updateParcel)
     .delete(authorize('admin'), deleteParcel);
 
+router.patch('/:id/assign-agent', authorize('admin'), require('../controllers/parcels').assignAgent);
+
 module.exports = router;
